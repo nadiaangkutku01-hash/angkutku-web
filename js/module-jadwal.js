@@ -225,80 +225,337 @@ window.jdShareWhatsApp = function(idOrder) {
 };
 
 // ============================================================================
-// FORM TAMBAH/EDIT
+// UTILITAS BARIS TEKS DINAMIS -- pola sama persis window.addSimpleTextRow
+// di GAS, dipakai buat Alamat Asal/Tujuan/Armada/Driver/Helper (bisa lebih
+// dari 1 baris, disatukan pakai newline saat submit).
 // ============================================================================
-window.jadwalOpenForm = function(existingRow) {
-  const isEdit = !!existingRow;
-  const v = function(field, def) { return existingRow ? (existingRow[field] || def || '') : (def || ''); };
+window.jdAddSimpleTextRow = function(containerId, placeholder, value) {
+  const area = document.getElementById(containerId);
+  if (!area) return;
+  const div = document.createElement('div');
+  div.className = 'flex gap-1.5 items-center simple-text-row';
+  div.innerHTML = '<input type="text" placeholder="' + (placeholder||'') + '" value="' + (value||'') + '" class="erp-input i-val">' +
+    '<button type="button" onclick="this.parentElement.remove();" class="text-rose-500 text-lg"><i class="fas fa-minus-circle"></i></button>';
+  area.appendChild(div);
+};
 
-  const modalHtml = `
-    <div id="jadwal-modal" class="erp-modal-overlay">
-      <div class="erp-modal-box">
-        <h3 class="erp-card-title mb-4">${isEdit ? 'Edit' : 'Tambah'} Jadwal</h3>
-        <div class="space-y-2.5">
-          <div><label class="erp-label">Tanggal</label><input type="date" id="jf-tanggal" value="${v('tanggal')}" class="erp-input"></div>
-          <div><label class="erp-label">Nama Pelanggan</label><input id="jf-nama" value="${v('nama_pelanggan')}" class="erp-input"></div>
-          <div><label class="erp-label">No HP</label><input id="jf-hp" value="${v('no_hp')}" class="erp-input"></div>
-          <div><label class="erp-label">Alamat Asal</label><input id="jf-asal" value="${v('alamat_asal')}" class="erp-input"></div>
-          <div><label class="erp-label">Alamat Tujuan</label><input id="jf-tujuan" value="${v('alamat_tujuan')}" class="erp-input"></div>
-          <div><label class="erp-label">Armada</label><input id="jf-armada" value="${v('armada_terpilih')}" class="erp-input"></div>
-          <div><label class="erp-label">Driver</label><input id="jf-driver" value="${v('driver_terpilih')}" class="erp-input"></div>
-          <div><label class="erp-label">Helper</label><input id="jf-helper" value="${v('helper_terpilih')}" class="erp-input"></div>
-          <div><label class="erp-label">Jenis Layanan</label><input id="jf-layanan" value="${v('jenis_layanan')}" class="erp-input"></div>
-          <div><label class="erp-label">Alat Kerja Dibawa</label><input id="jf-alatkerja" value="${v('alat_kerja_dibawa')}" class="erp-input"></div>
-          <div><label class="erp-label">Referensi Customer</label><input id="jf-referensi" value="${v('referensi_customer')}" class="erp-input"></div>
-          <div><label class="erp-label">Catatan</label><input id="jf-catatan" value="${v('catatan')}" class="erp-input"></div>
-          <div><label class="erp-label">Status</label>
-            <select id="jf-status" class="erp-input">
-              <option value="Berjalan" ${v('status_selesai')==='Berjalan'||!v('status_selesai')?'selected':''}>Berjalan</option>
-              <option value="Selesai" ${v('status_selesai')==='Selesai'?'selected':''}>Selesai</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex gap-2 mt-4">
-          <button onclick="document.getElementById('jadwal-modal').remove()" class="erp-btn-secondary flex-1">Batal</button>
-          <button onclick="jadwalSubmit(${isEdit ? "'" + existingRow.id_order + "'" : 'null'})" class="erp-btn-primary flex-1">Simpan</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
+window.jdSyncSimpleTextRows = function(containerId, hiddenFieldId) {
+  const rows = document.querySelectorAll('#' + containerId + ' .simple-text-row .i-val');
+  const values = Array.from(rows).map(function(el) { return el.value; });
+  document.getElementById(hiddenFieldId).value = values.join('\n');
+};
+
+// ============================================================================
+// KATEGORI PEKERJAAN -- Pindahan / Kirim Barang / Lainnya (Cleaning/
+// Packing/AC/Manual)
+// ============================================================================
+window.jdToggleKategoriPekerjaan = function(kategori) {
+  document.getElementById('jd-f-kategori').value = kategori === 'Pindahan' ? '' : kategori;
+  const isLainnya = kategori === 'Lainnya';
+
+  ['pindahan', 'kirim', 'lainnya'].forEach(function(k) {
+    const el = document.getElementById('jd-tab-' + k);
+    const match = { pindahan: 'Pindahan', kirim: 'Kirim Barang', lainnya: 'Lainnya' }[k];
+    const active = match === kategori;
+    el.className = 'flex-1 py-2 rounded-lg text-[10px] uppercase font-black cursor-pointer ' + (active ? (k === 'lainnya' ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white') : 'bg-white text-slate-500 border border-slate-200');
+  });
+
+  document.getElementById('jd-lainnya-subkategori-wrap').classList.toggle('hidden', !isLainnya);
+  document.getElementById('jd-alamat-tujuan-wrap').classList.toggle('hidden', isLainnya);
+  document.getElementById('jd-jenislayanan-wrap').classList.toggle('hidden', isLainnya);
+  document.getElementById('jd-lainnya-preview-wrap').classList.toggle('hidden', !isLainnya);
+  document.getElementById('jd-label-alamat-asal').textContent = isLainnya ? 'Lokasi Pengerjaan:' : 'Alamat Asal:';
+
+  if (isLainnya) window.jdToggleSubkategoriLainnya(document.getElementById('jd-subkategori-lainnya').value);
+};
+
+window.jdToggleSubkategoriLainnya = function(value) {
+  ['cleaning', 'packing', 'ac', 'manual'].forEach(function(k) { document.getElementById('jd-sub-' + k).classList.add('hidden'); });
+  if (value === 'Cleaning Service') document.getElementById('jd-sub-cleaning').classList.remove('hidden');
+  else if (value === 'Packing Standar' || value === 'Packing Kayu') {
+    document.getElementById('jd-sub-packing').classList.remove('hidden');
+    document.getElementById('jd-packing-title').textContent = 'Rincian Barang ' + value + ':';
+    document.getElementById('jd-packing-kayu-addon').classList.toggle('hidden', value !== 'Packing Kayu');
+    if (!document.querySelector('#jd-packing-row-area .jd-packing-row')) window.jdAddPackingRow();
+  } else if (value === 'Bongkar Pasang AC') {
+    document.getElementById('jd-sub-ac').classList.remove('hidden');
+    if (!document.querySelector('#jd-ac-row-area .jd-ac-row')) window.jdAddAcRow();
+  } else {
+    document.getElementById('jd-sub-manual').classList.remove('hidden');
+  }
+};
+
+window.jdAddPackingRow = function(nama, dimensi, qty) {
+  const area = document.getElementById('jd-packing-row-area');
+  const div = document.createElement('div');
+  div.className = 'flex gap-1.5 items-center jd-packing-row';
+  div.innerHTML = '<input placeholder="Nama Barang" value="' + (nama||'') + '" class="erp-input flex-[2] i-nama">' +
+    '<input placeholder="Dimensi PxLxT cm" value="' + (dimensi||'') + '" class="erp-input flex-1 i-dimensi">' +
+    '<input type="number" placeholder="Qty" value="' + (qty||1) + '" class="erp-input w-16 i-qty">' +
+    '<button type="button" onclick="this.parentElement.remove();" class="text-rose-500 text-lg"><i class="fas fa-minus-circle"></i></button>';
+  area.appendChild(div);
+};
+
+window.jdAddAcRow = function(jenisAc, pk, jenisKerja, qty) {
+  const area = document.getElementById('jd-ac-row-area');
+  const pkOpts = ['0.5 PK','1 PK','1.5 PK','2 PK','2.5 PK','Lainnya'].map(function(o) { return '<option value="'+o+'"'+(pk===o?' selected':'')+'>'+o+'</option>'; }).join('');
+  const kerjaOpts = ['Bongkar','Pasang','Bongkar+Pasang','Cuci'].map(function(o) { return '<option value="'+o+'"'+(jenisKerja===o?' selected':'')+'>'+o+'</option>'; }).join('');
+  const div = document.createElement('div');
+  div.className = 'flex gap-1.5 items-center jd-ac-row';
+  div.innerHTML = '<input placeholder="Jenis Unit" value="' + (jenisAc||'') + '" class="erp-input flex-[2] i-jenis-ac">' +
+    '<select class="erp-input flex-1 i-pk">' + pkOpts + '</select>' +
+    '<select class="erp-input flex-1 i-jenis-kerja">' + kerjaOpts + '</select>' +
+    '<input type="number" placeholder="Qty" value="' + (qty||1) + '" class="erp-input w-14 i-qty">' +
+    '<button type="button" onclick="this.parentElement.remove();" class="text-rose-500 text-lg"><i class="fas fa-minus-circle"></i></button>';
+  area.appendChild(div);
+};
+
+window.jdAddAcExtraRow = function(val) {
+  const area = document.getElementById('jd-ac-extra-row-area');
+  const div = document.createElement('div');
+  div.className = 'flex gap-1.5 items-center jd-ac-extra-row';
+  div.innerHTML = '<input placeholder="Contoh: Bobok tembok, isi freon" value="' + (val||'') + '" class="erp-input flex-1 i-extra">' +
+    '<button type="button" onclick="this.parentElement.remove();" class="text-rose-500 text-lg"><i class="fas fa-minus-circle"></i></button>';
+  area.appendChild(div);
+};
+
+// Serialisasi Cleaning/Packing/AC/Manual jadi format "TIPE|field..." --
+// PERSIS format yang sama dengan SPH/SPK di Views_Office.html, disimpan
+// ke kolom jenis_layanan.
+window.jdSyncLainnyaFields = function() {
+  const subkat = document.getElementById('jd-subkategori-lainnya').value;
+  let lines = [];
+  if (subkat === 'Cleaning Service') {
+    const paket = document.getElementById('jd-cleaning-paket').value;
+    const luas = document.getElementById('jd-cleaning-luas').value || '0';
+    const ruangan = document.getElementById('jd-cleaning-ruangan').value || '1';
+    lines.push('CLEANING|' + paket + '|' + luas + '|' + ruangan);
+  } else if (subkat === 'Packing Standar' || subkat === 'Packing Kayu') {
+    document.querySelectorAll('#jd-packing-row-area .jd-packing-row').forEach(function(r) {
+      lines.push('PACKING|' + r.querySelector('.i-nama').value + '|' + r.querySelector('.i-dimensi').value + '|' + r.querySelector('.i-qty').value);
+    });
+    if (subkat === 'Packing Kayu') {
+      const addons = [];
+      document.querySelectorAll('.jd-packing-kayu-addon-check:checked').forEach(function(cb) { addons.push(cb.value); });
+      if (addons.length) lines.push('ADDON|' + addons.join(','));
+    }
+  } else if (subkat === 'Bongkar Pasang AC') {
+    document.querySelectorAll('#jd-ac-row-area .jd-ac-row').forEach(function(r) {
+      lines.push('AC|' + r.querySelector('.i-jenis-ac').value + '|' + r.querySelector('.i-pk').value + '|' + r.querySelector('.i-jenis-kerja').value + '|' + r.querySelector('.i-qty').value);
+    });
+    document.querySelectorAll('#jd-ac-extra-row-area .jd-ac-extra-row').forEach(function(r) {
+      const val = r.querySelector('.i-extra').value.trim();
+      if (val) lines.push('EXTRA|' + val);
+    });
+  } else {
+    const manualVal = document.getElementById('jd-lainnya-manual').value.trim();
+    if (manualVal) lines.push('MANUAL|' + manualVal);
+  }
+  document.getElementById('jd-f-jenis-layanan-hidden').value = lines.join('\n');
+};
+
+// Baca balik format "TIPE|field..." pas mode edit -- isi ulang baris
+// form biar gak perlu ketik ulang.
+window.jdRestoreLainnyaFields = function(subkat, jenisLayananRaw) {
+  const lines = (jenisLayananRaw || '').split('\n').filter(Boolean);
+  if (subkat === 'Cleaning Service') {
+    const cLine = lines.find(function(l) { return l.indexOf('CLEANING|') === 0; });
+    if (cLine) {
+      const parts = cLine.split('|');
+      document.getElementById('jd-cleaning-paket').value = parts[1] || 'General Cleaning';
+      document.getElementById('jd-cleaning-luas').value = parts[2] || '0';
+      document.getElementById('jd-cleaning-ruangan').value = parts[3] || '1';
+    }
+  } else if (subkat === 'Packing Standar' || subkat === 'Packing Kayu') {
+    const area = document.getElementById('jd-packing-row-area');
+    area.innerHTML = '';
+    const packingLines = lines.filter(function(l) { return l.indexOf('PACKING|') === 0; });
+    if (packingLines.length === 0) window.jdAddPackingRow();
+    else packingLines.forEach(function(l) { const p = l.split('|'); window.jdAddPackingRow(p[1], p[2], p[3]); });
+    const addonLine = lines.find(function(l) { return l.indexOf('ADDON|') === 0; });
+    if (addonLine) {
+      const addons = addonLine.split('|')[1].split(',');
+      document.querySelectorAll('.jd-packing-kayu-addon-check').forEach(function(cb) { cb.checked = addons.indexOf(cb.value) !== -1; });
+    }
+  } else if (subkat === 'Bongkar Pasang AC') {
+    const acArea = document.getElementById('jd-ac-row-area');
+    acArea.innerHTML = '';
+    const acLines = lines.filter(function(l) { return l.indexOf('AC|') === 0; });
+    if (acLines.length === 0) window.jdAddAcRow();
+    else acLines.forEach(function(l) { const p = l.split('|'); window.jdAddAcRow(p[1], p[2], p[3], p[4]); });
+    const extraArea = document.getElementById('jd-ac-extra-row-area');
+    extraArea.innerHTML = '';
+    lines.filter(function(l) { return l.indexOf('EXTRA|') === 0; }).forEach(function(l) { window.jdAddAcExtraRow(l.split('|')[1]); });
+  } else {
+    const mLine = lines.find(function(l) { return l.indexOf('MANUAL|') === 0; });
+    document.getElementById('jd-lainnya-manual').value = mLine ? mLine.split('|').slice(1).join('|') : '';
+  }
+};
+
+// ============================================================================
+// FORM TAMBAH/EDIT -- versi lengkap
+// ============================================================================
+window.jadwalOpenForm = async function(existingRow) {
+  const isEdit = !!existingRow;
+  const row = existingRow || {};
+  const v = function(f, d) { return row[f] || d || ''; };
+  const kategori = row.jenis_spk_kategori || 'Pindahan';
+  const isLainnya = kategori === 'Lainnya';
+  const subkat = row.subkategori_lainnya || 'Cleaning Service';
+
+  const { data: spkList } = await supabaseClient.from('spk').select('no_spk, nama_pelanggan');
+  const spkOptions = '<option value="">-- Tanpa Referensi SPK --</option>' + (spkList||[]).map(function(s) { return '<option value="' + s.no_spk + '"' + (row.no_spk===s.no_spk?' selected':'') + '>' + s.no_spk + ' - ' + s.nama_pelanggan + '</option>'; }).join('');
+
+  const subkatOpts = ['Cleaning Service','Packing Standar','Packing Kayu','Bongkar Pasang AC','Lainnya'].map(function(o) { return '<option value="'+o+'"'+(subkat===o?' selected':'')+'>'+o+'</option>'; }).join('');
+
+  const html = '<div id="jadwal-modal" class="erp-modal-overlay"><div class="erp-modal-box" style="max-width:680px;">' +
+    '<h3 class="erp-card-title mb-4">' + (isEdit ? 'Edit' : 'Tambah') + ' Jadwal</h3>' +
+    '<div class="space-y-2.5">' +
+    '<div><label class="erp-label">Tanggal</label><input type="date" id="jf-tanggal" value="' + v('tanggal') + '" class="erp-input"></div>' +
+    '<div class="grid grid-cols-2 gap-2"><div><label class="erp-label">Nama Pelanggan</label><input id="jf-nama" value="' + v('nama_pelanggan') + '" class="erp-input"></div><div><label class="erp-label">No HP</label><input id="jf-hp" value="' + v('no_hp') + '" class="erp-input"></div></div>' +
+
+    // Kategori Pekerjaan
+    '<div class="flex gap-2 bg-slate-100 p-1.5 rounded-xl">' +
+    '<button type="button" id="jd-tab-pindahan" onclick="jdToggleKategoriPekerjaan(\'Pindahan\')" class="flex-1 py-2 rounded-lg text-[10px] uppercase font-black ' + (kategori==='Pindahan'?'bg-blue-600 text-white':'bg-white text-slate-500 border border-slate-200') + '">A. Pindahan</button>' +
+    '<button type="button" id="jd-tab-kirim" onclick="jdToggleKategoriPekerjaan(\'Kirim Barang\')" class="flex-1 py-2 rounded-lg text-[10px] uppercase font-black ' + (kategori==='Kirim Barang'?'bg-blue-600 text-white':'bg-white text-slate-500 border border-slate-200') + '">B. Kirim Barang</button>' +
+    '<button type="button" id="jd-tab-lainnya" onclick="jdToggleKategoriPekerjaan(\'Lainnya\')" class="flex-1 py-2 rounded-lg text-[10px] uppercase font-black ' + (isLainnya?'bg-purple-600 text-white':'bg-white text-slate-500 border border-slate-200') + '">C. Lainnya</button>' +
+    '</div>' +
+
+    '<div id="jd-lainnya-subkategori-wrap" class="border border-purple-200 bg-purple-50/40 p-2.5 rounded-lg ' + (isLainnya?'':'hidden') + '">' +
+    '<label class="erp-label text-purple-700">Sub-Kategori Pekerjaan</label>' +
+    '<select id="jd-subkategori-lainnya" onchange="jdToggleSubkategoriLainnya(this.value)" class="erp-input">' + subkatOpts + '</select></div>' +
+
+    // Alamat Asal/Tujuan multi-baris
+    '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
+    '<div class="border border-slate-200 p-2.5 rounded-lg bg-slate-50"><div class="flex justify-between items-center mb-1"><span id="jd-label-alamat-asal" class="erp-label text-emerald-600">Alamat Asal:</span><button type="button" onclick="jdAddSimpleTextRow(\'jadwal-asal-row-area\',\'Alamat asal\')" class="text-[9px] text-emerald-600 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jadwal-asal-row-area" class="space-y-1.5"></div></div>' +
+    '<div id="jd-alamat-tujuan-wrap" class="border border-slate-200 p-2.5 rounded-lg bg-slate-50 ' + (isLainnya?'hidden':'') + '"><div class="flex justify-between items-center mb-1"><span class="erp-label text-rose-600">Alamat Tujuan:</span><button type="button" onclick="jdAddSimpleTextRow(\'jadwal-tujuan-row-area\',\'Alamat tujuan\')" class="text-[9px] text-rose-600 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jadwal-tujuan-row-area" class="space-y-1.5"></div></div>' +
+    '</div>' +
+
+    '<div id="jd-jenislayanan-wrap" class="border border-slate-200 p-2.5 rounded-lg bg-slate-50 ' + (isLainnya?'hidden':'') + '"><div class="flex justify-between items-center mb-1"><span class="erp-label text-blue-600">Jenis Layanan:</span><button type="button" onclick="jdAddSimpleTextRow(\'jadwal-layanan-row-area\',\'Jenis layanan\')" class="text-[9px] text-blue-600 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jadwal-layanan-row-area" class="space-y-1.5"></div></div>' +
+
+    // Sub-form Lainnya: Cleaning / Packing / AC / Manual
+    '<div id="jd-lainnya-preview-wrap" class="space-y-3 ' + (isLainnya?'':'hidden') + '">' +
+    '<div id="jd-sub-cleaning" class="space-y-2 border border-cyan-200 bg-cyan-50/40 p-2.5 rounded-lg hidden">' +
+    '<div class="grid grid-cols-2 gap-2"><div><label class="erp-label">Jenis Paket</label><select id="jd-cleaning-paket" class="erp-input"><option value="General Cleaning">General Cleaning</option><option value="Deep Cleaning">Deep Cleaning</option></select></div>' +
+    '<div><label class="erp-label">Luas Area (m2)</label><input type="number" id="jd-cleaning-luas" value="45" class="erp-input"></div></div>' +
+    '<div><label class="erp-label">Jumlah Ruangan/Unit</label><input type="number" id="jd-cleaning-ruangan" value="1" class="erp-input"></div></div>' +
+
+    '<div id="jd-sub-packing" class="space-y-2 border border-purple-200 bg-purple-50/40 p-2.5 rounded-lg hidden">' +
+    '<div class="flex justify-between items-center"><span id="jd-packing-title" class="erp-label text-purple-700">Rincian Barang:</span><button type="button" onclick="jdAddPackingRow()" class="text-[9px] text-purple-700 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah Barang</button></div>' +
+    '<div id="jd-packing-row-area" class="space-y-1.5"></div>' +
+    '<div id="jd-packing-kayu-addon" class="hidden pt-2 border-t border-purple-200"><span class="erp-label text-purple-700">Tambahan Material Peti Kayu:</span><div class="grid grid-cols-2 gap-1 text-[11px] mt-1">' +
+    ['Kardus','Wrapping','Bubble Wrap','Triplek','Pallet'].map(function(o) { return '<label class="flex items-center gap-1.5"><input type="checkbox" class="jd-packing-kayu-addon-check" value="'+o+'"> '+o+'</label>'; }).join('') + '</div></div></div>' +
+
+    '<div id="jd-sub-ac" class="space-y-2 border border-amber-200 bg-amber-50/40 p-2.5 rounded-lg hidden">' +
+    '<div class="flex justify-between items-center"><span class="erp-label text-amber-700">Rincian Unit AC:</span><button type="button" onclick="jdAddAcRow()" class="text-[9px] text-amber-700 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah Unit</button></div>' +
+    '<div id="jd-ac-row-area" class="space-y-1.5"></div>' +
+    '<div class="pt-2 border-t border-amber-200"><div class="flex justify-between items-center"><span class="erp-label text-amber-700">Layanan Tambahan:</span><button type="button" onclick="jdAddAcExtraRow()" class="text-[9px] text-amber-700 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jd-ac-extra-row-area" class="space-y-1.5"></div></div></div>' +
+
+    '<div id="jd-sub-manual" class="hidden"><label class="erp-label">Rincian Pekerjaan</label><textarea id="jd-lainnya-manual" rows="3" class="erp-input"></textarea></div>' +
+    '</div>' +
+
+    // Plotting kru
+    '<div class="border border-slate-200 p-2.5 rounded-lg bg-slate-50 space-y-2.5">' +
+    '<p class="erp-label text-blue-600">Plotting Kru Lapangan:</p>' +
+    '<div><div class="flex justify-between items-center mb-1"><span class="erp-label text-indigo-600">Armada:</span><button type="button" onclick="jdAddSimpleTextRow(\'jadwal-armada-row-area\',\'Plat mobil\')" class="text-[9px] text-indigo-600 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jadwal-armada-row-area" class="space-y-1.5"></div></div>' +
+    '<div><div class="flex justify-between items-center mb-1"><span class="erp-label text-teal-600">Driver:</span><button type="button" onclick="jdAddSimpleTextRow(\'jadwal-driver-row-area\',\'Nama driver\')" class="text-[9px] text-teal-600 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jadwal-driver-row-area" class="space-y-1.5"></div></div>' +
+    '<div><div class="flex justify-between items-center mb-1"><span class="erp-label text-amber-600">Helper:</span><button type="button" onclick="jdAddSimpleTextRow(\'jadwal-helper-row-area\',\'Nama helper\')" class="text-[9px] text-amber-600 font-bold"><i class="fas fa-plus-circle mr-1"></i>Tambah</button></div><div id="jadwal-helper-row-area" class="space-y-1.5"></div></div>' +
+    '</div>' +
+
+    '<div><label class="erp-label">Alat Kerja Dibawa</label><input id="jf-alatkerja" value="' + v('alat_kerja_dibawa') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Referensi Customer</label><input id="jf-referensi" value="' + v('referensi_customer') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Catatan</label><input id="jf-catatan" value="' + v('catatan') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">No SPK Turunan (Opsional)</label><select id="jf-no-spk" class="erp-input">' + spkOptions + '</select></div>' +
+    '<div><label class="erp-label">Status</label><select id="jf-status" class="erp-input"><option value="Berjalan"' + (v('status_selesai')==='Berjalan'||!v('status_selesai')?' selected':'') + '>Berjalan</option><option value="Selesai"' + (v('status_selesai')==='Selesai'?' selected':'') + '>Selesai</option></select></div>' +
+
+    '<input type="hidden" id="jd-f-kategori" value="' + v('jenis_spk_kategori') + '">' +
+    '<input type="hidden" id="jd-f-jenis-layanan-hidden" value="' + v('jenis_layanan') + '">' +
+    '</div>' +
+    '<div class="flex gap-2 mt-4"><button onclick="document.getElementById(\'jadwal-modal\').remove()" class="erp-btn-secondary flex-1">Batal</button>' +
+    '<button onclick="jadwalSubmit(' + (isEdit ? "'" + existingRow.id_order + "'" : 'null') + ')" class="erp-btn-primary flex-1">Simpan</button></div>' +
+    '</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  // Isi ulang baris multi-teks dari data lama (edit) atau 1 baris kosong (baru)
+  (row.alamat_asal || '').split('\n').filter(Boolean).forEach(function(t) { window.jdAddSimpleTextRow('jadwal-asal-row-area', 'Alamat asal', t); });
+  if (!row.alamat_asal) window.jdAddSimpleTextRow('jadwal-asal-row-area', 'Alamat asal');
+  (row.alamat_tujuan || '').split('\n').filter(Boolean).forEach(function(t) { window.jdAddSimpleTextRow('jadwal-tujuan-row-area', 'Alamat tujuan', t); });
+  if (!row.alamat_tujuan) window.jdAddSimpleTextRow('jadwal-tujuan-row-area', 'Alamat tujuan');
+  if (!isLainnya) {
+    (row.jenis_layanan || '').split('\n').filter(Boolean).forEach(function(t) { window.jdAddSimpleTextRow('jadwal-layanan-row-area', 'Jenis layanan', t); });
+    if (!row.jenis_layanan) window.jdAddSimpleTextRow('jadwal-layanan-row-area', 'Jenis layanan');
+  }
+  (row.armada_terpilih || '').split('\n').filter(Boolean).forEach(function(t) { window.jdAddSimpleTextRow('jadwal-armada-row-area', 'Plat mobil', t); });
+  if (!row.armada_terpilih) window.jdAddSimpleTextRow('jadwal-armada-row-area', 'Plat mobil');
+  (row.driver_terpilih || '').split('\n').filter(Boolean).forEach(function(t) { window.jdAddSimpleTextRow('jadwal-driver-row-area', 'Nama driver', t); });
+  if (!row.driver_terpilih) window.jdAddSimpleTextRow('jadwal-driver-row-area', 'Nama driver');
+  (row.helper_terpilih || '').split('\n').filter(Boolean).forEach(function(t) { window.jdAddSimpleTextRow('jadwal-helper-row-area', 'Nama helper', t); });
+  if (!row.helper_terpilih) window.jdAddSimpleTextRow('jadwal-helper-row-area', 'Nama helper');
+
+  if (isLainnya) {
+    window.jdToggleSubkategoriLainnya(subkat);
+    window.jdRestoreLainnyaFields(subkat, row.jenis_layanan);
+  }
 };
 
 window.jadwalSubmit = async function(idOrder) {
   const gv = function(id) { return document.getElementById(id).value; };
+
+  // Sinkronkan SEMUA baris multi-teks + Lainnya sebelum baca nilainya --
+  // persis urutan yang sama di GAS.
+  const alamatAsal = Array.from(document.querySelectorAll('#jadwal-asal-row-area .i-val')).map(function(el) { return el.value; }).filter(Boolean).join('\n');
+  const alamatTujuan = Array.from(document.querySelectorAll('#jadwal-tujuan-row-area .i-val')).map(function(el) { return el.value; }).filter(Boolean).join('\n');
+  const armadaTerpilih = Array.from(document.querySelectorAll('#jadwal-armada-row-area .i-val')).map(function(el) { return el.value; }).filter(Boolean).join('\n');
+  const driverTerpilih = Array.from(document.querySelectorAll('#jadwal-driver-row-area .i-val')).map(function(el) { return el.value; }).filter(Boolean).join('\n');
+  const helperTerpilih = Array.from(document.querySelectorAll('#jadwal-helper-row-area .i-val')).map(function(el) { return el.value; }).filter(Boolean).join('\n');
+
+  const kategori = gv('jd-f-kategori');
+  const isLainnya = kategori === 'Lainnya';
+  let jenisLayanan;
+  if (isLainnya) {
+    window.jdSyncLainnyaFields();
+    jenisLayanan = gv('jd-f-jenis-layanan-hidden');
+  } else {
+    jenisLayanan = Array.from(document.querySelectorAll('#jadwal-layanan-row-area .i-val')).map(function(el) { return el.value; }).filter(Boolean).join('\n');
+  }
+
   const payload = {
     tanggal: gv('jf-tanggal'),
     nama_pelanggan: gv('jf-nama'),
     no_hp: gv('jf-hp'),
-    alamat_asal: gv('jf-asal'),
-    alamat_tujuan: gv('jf-tujuan'),
-    armada_terpilih: gv('jf-armada'),
-    driver_terpilih: gv('jf-driver'),
-    helper_terpilih: gv('jf-helper'),
-    jenis_layanan: gv('jf-layanan'),
+    alamat_asal: alamatAsal,
+    alamat_tujuan: isLainnya ? '' : alamatTujuan,
+    jenis_layanan: jenisLayanan,
+    jenis_spk_kategori: kategori,
+    subkategori_lainnya: isLainnya ? document.getElementById('jd-subkategori-lainnya').value : '',
+    armada_terpilih: armadaTerpilih,
+    driver_terpilih: driverTerpilih,
+    helper_terpilih: helperTerpilih,
     alat_kerja_dibawa: gv('jf-alatkerja'),
     referensi_customer: gv('jf-referensi'),
     catatan: gv('jf-catatan'),
+    no_spk: gv('jf-no-spk') || null,
     status_selesai: gv('jf-status'),
   };
 
-  let error;
+  let res;
   if (idOrder) {
-    ({ error } = await supabaseClient.from('jadwal').update(payload).eq('id_order', idOrder));
+    res = await supabaseClient.from('jadwal').update(payload).eq('id_order', idOrder);
   } else {
     payload.id_order = 'ANGKUTKU-ORD-' + Date.now();
     payload.dibuat_oleh = window.CURRENT_USER_SESSION.name;
-    ({ error } = await supabaseClient.from('jadwal').insert(payload));
+    res = await supabaseClient.from('jadwal').insert(payload);
   }
 
-  if (error) { alert('Gagal simpan: ' + error.message); return; }
+  if (res.error) { alert('Gagal simpan: ' + res.error.message); return; }
   document.getElementById('jadwal-modal').remove();
   renderJadwalModule(document.getElementById('content-area'));
 };
 
 window.jadwalDelete = async function(idOrder) {
   if (!confirm('Hapus jadwal ini?')) return;
-  const { error } = await supabaseClient.from('jadwal').delete().eq('id_order', idOrder);
-  if (error) { alert('Gagal hapus: ' + error.message); return; }
+  const res = await supabaseClient.from('jadwal').delete().eq('id_order', idOrder);
+  if (res.error) { alert('Gagal hapus: ' + res.error.message); return; }
   renderJadwalModule(document.getElementById('content-area'));
 };
