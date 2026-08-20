@@ -36,6 +36,7 @@
   <script src="js/module-pelanggan.js"></script>
   <script src="js/module-masterdata.js"></script>
   <script src="js/module-jadwal.js"></script>
+  <script src="js/module-office.js"></script>
   <script>
     // Daftar menu -- cuma yang munculnya sesuai hasPermission(). Modul
     // yang belum dibangun ditandai "(segera)" -- klik gak akan ngapa-
@@ -44,7 +45,7 @@
     const ALL_MENUS = [
       { key: "DASHBOARD", label: "Dashboard", icon: "fa-chart-pie", ready: false },
       { key: "MASTER_DATA", label: "Master Data", icon: "fa-database", ready: true },
-      { key: "OFFICE", label: "Office", icon: "fa-file-invoice", ready: false },
+      { key: "OFFICE", label: "Office", icon: "fa-file-invoice", ready: true },
       { key: "JADWAL", label: "Jadwal", icon: "fa-calendar", ready: true },
       { key: "LAPORAN_KEUANGAN", label: "Laporan Keuangan", icon: "fa-coins", ready: false },
     ];
@@ -78,6 +79,8 @@
         renderMasterDataModule(contentArea);
       } else if (key === 'JADWAL') {
         renderJadwalModule(contentArea);
+      } else if (key === 'OFFICE') {
+        renderSphModule(contentArea);
       } else {
         contentArea.innerHTML = '<div class="p-8 text-center text-slate-400 italic">Modul ini belum dibangun di sistem baru -- masih tersedia di sistem GAS lama.</div>';
       }
