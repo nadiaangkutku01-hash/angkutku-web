@@ -57,7 +57,7 @@ window.renderKaryawanModule = async function(area) {
       </div>
       <div class="overflow-x-auto">
         <table class="erp-table">
-          <thead><tr><th>Nama</th><th>Jabatan</th><th>Jenis</th><th>No Telepon</th><th>Status</th><th class="text-center">Aksi</th></tr></thead>
+          <thead><tr><th>Nama</th><th>Jabatan</th><th>Jenis</th><th>No Telepon</th><th>Gaji Pokok</th><th>Saldo Tabungan</th><th>Status</th><th class="text-center">Aksi</th></tr></thead>
           <tbody>${rows.map(karyawanRowHtml).join('')}</tbody>
         </table>
       </div>
@@ -67,11 +67,14 @@ window.renderKaryawanModule = async function(area) {
 
 function karyawanRowHtml(r) {
   const badgeClass = r.status === 'Aktif' ? 'erp-badge-success' : 'erp-badge-neutral';
+  const formatRp = function(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); };
   return `<tr>
     <td class="font-bold text-slate-700">${r.nama_karyawan || '-'}</td>
     <td>${r.jabatan || '-'}</td>
     <td>${r.jenis_karyawan || '-'}</td>
     <td>${r.no_telepon || '-'}</td>
+    <td class="font-mono">${formatRp(r.gaji_pokok)}</td>
+    <td class="font-mono">${formatRp(r.saldo_tabungan)}</td>
     <td><span class="erp-badge ${badgeClass}">${r.status || 'Aktif'}</span></td>
     <td class="text-center">
       <button onclick='karyawanOpenForm(${JSON.stringify(r)})' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button>
@@ -96,6 +99,13 @@ window.karyawanOpenForm = function(existingRow) {
             </select>
           </div>
           <div><label class="erp-label">No Telepon</label><input id="kf-telepon" value="${existingRow ? existingRow.no_telepon || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">No KTP</label><input id="kf-ktp" value="${existingRow ? existingRow.no_ktp || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Alamat</label><input id="kf-alamat" value="${existingRow ? existingRow.alamat || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Tanggal Masuk</label><input type="date" id="kf-tglmasuk" value="${existingRow ? existingRow.tanggal_masuk || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Nama Bank</label><input id="kf-bank" value="${existingRow ? existingRow.nama_bank || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">No Rekening</label><input id="kf-rekening" value="${existingRow ? existingRow.no_rekening || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Gaji Pokok (khusus karyawan Tetap)</label><input type="number" id="kf-gaji" value="${existingRow ? existingRow.gaji_pokok || 0 : 0}" class="erp-input"></div>
+          <div><label class="erp-label">Durasi Kontrak</label><input id="kf-durasi" placeholder="misal: 1 Tahun" value="${existingRow ? existingRow.durasi_kontrak || '' : ''}" class="erp-input"></div>
           <div><label class="erp-label">Status</label>
             <select id="kf-status" class="erp-input">
               <option value="Aktif" ${existingRow && existingRow.status === 'Aktif' ? 'selected' : ''}>Aktif</option>
@@ -118,6 +128,13 @@ window.karyawanSubmit = async function(idKaryawan) {
     jabatan: document.getElementById('kf-jabatan').value,
     jenis_karyawan: document.getElementById('kf-jenis').value,
     no_telepon: document.getElementById('kf-telepon').value,
+    no_ktp: document.getElementById('kf-ktp').value,
+    alamat: document.getElementById('kf-alamat').value,
+    tanggal_masuk: document.getElementById('kf-tglmasuk').value || null,
+    nama_bank: document.getElementById('kf-bank').value,
+    no_rekening: document.getElementById('kf-rekening').value,
+    gaji_pokok: Number(document.getElementById('kf-gaji').value) || 0,
+    durasi_kontrak: document.getElementById('kf-durasi').value,
     status: document.getElementById('kf-status').value,
   };
   let error;
@@ -156,7 +173,7 @@ window.renderArmadaModule = async function(area) {
       </div>
       <div class="overflow-x-auto">
         <table class="erp-table">
-          <thead><tr><th>No Polisi</th><th>Jenis</th><th>Merk</th><th>Investor Pemilik</th><th class="text-center">Aksi</th></tr></thead>
+          <thead><tr><th>No Polisi</th><th>Jenis</th><th>Merk</th><th>Tahun</th><th>Status Servis</th><th>Tgl Pajak</th><th>Investor Pemilik</th><th class="text-center">Aksi</th></tr></thead>
           <tbody>${rows.map(armadaRowHtml).join('')}</tbody>
         </table>
       </div>
@@ -165,13 +182,14 @@ window.renderArmadaModule = async function(area) {
 };
 
 function armadaRowHtml(r) {
-  // Kolom "investor" di sini hasil JOIN otomatis Supabase (foreign key
-  // armada.investor_id -> investor.id_investor yang sudah kita atur di
-  // skema Fase 1) -- gak perlu query manual terpisah kayak GAS dulu.
+  const servisBadge = r.status_servis === 'Perlu Servis' ? 'erp-badge-danger' : 'erp-badge-success';
   return `<tr>
     <td class="font-bold text-slate-700 font-mono">${r.no_polisi || '-'}</td>
     <td>${r.jenis_kendaraan || '-'}</td>
     <td>${r.merk || '-'}</td>
+    <td>${r.tahun_kendaraan || '-'}</td>
+    <td><span class="erp-badge ${servisBadge}">${r.status_servis || 'Baik'}</span></td>
+    <td class="font-mono text-slate-500">${r.tgl_pajak || '-'}</td>
     <td>${(r.investor && r.investor.nama) || '<span class="text-slate-300 italic">Milik Angkutku</span>'}</td>
     <td class="text-center">
       <button onclick='armadaOpenForm(${JSON.stringify(r)})' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button>
@@ -197,7 +215,17 @@ window.armadaOpenForm = async function(existingRow) {
           <div><label class="erp-label">No Polisi</label><input id="af-plat" value="${existingRow ? existingRow.no_polisi || '' : ''}" class="erp-input"></div>
           <div><label class="erp-label">Jenis Kendaraan</label><input id="af-jenis" value="${existingRow ? existingRow.jenis_kendaraan || '' : ''}" class="erp-input"></div>
           <div><label class="erp-label">Merk</label><input id="af-merk" value="${existingRow ? existingRow.merk || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Tahun Kendaraan</label><input id="af-tahun" value="${existingRow ? existingRow.tahun_kendaraan || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Status Servis</label>
+            <select id="af-status-servis" class="erp-input">
+              <option value="Baik" ${existingRow && existingRow.status_servis === 'Baik' ? 'selected' : ''}>Baik</option>
+              <option value="Perlu Servis" ${existingRow && existingRow.status_servis === 'Perlu Servis' ? 'selected' : ''}>Perlu Servis</option>
+            </select>
+          </div>
+          <div><label class="erp-label">Tanggal Pajak</label><input type="date" id="af-tglpajak" value="${existingRow ? existingRow.tgl_pajak || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Tanggal Servis Terakhir</label><input type="date" id="af-tglservis" value="${existingRow ? existingRow.tgl_servis || '' : ''}" class="erp-input"></div>
           <div><label class="erp-label">Investor Pemilik</label><select id="af-investor" class="erp-input">${investorOptions}</select></div>
+          <div><label class="erp-label">Durasi Kontrak (kalau milik Investor)</label><input id="af-durasi" placeholder="misal: 2 Tahun" value="${existingRow ? existingRow.durasi_kontrak || '' : ''}" class="erp-input"></div>
         </div>
         <div class="flex gap-2 mt-4">
           <button onclick="document.getElementById('armada-modal').remove()" class="erp-btn-secondary flex-1">Batal</button>
@@ -213,7 +241,12 @@ window.armadaSubmit = async function(idArmada) {
     no_polisi: document.getElementById('af-plat').value,
     jenis_kendaraan: document.getElementById('af-jenis').value,
     merk: document.getElementById('af-merk').value,
+    tahun_kendaraan: document.getElementById('af-tahun').value,
+    status_servis: document.getElementById('af-status-servis').value,
+    tgl_pajak: document.getElementById('af-tglpajak').value || null,
+    tgl_servis: document.getElementById('af-tglservis').value || null,
     investor_id: document.getElementById('af-investor').value || null,
+    durasi_kontrak: document.getElementById('af-durasi').value,
   };
   let error;
   if (idArmada) {
