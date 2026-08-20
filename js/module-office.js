@@ -7,6 +7,7 @@ window.renderOfficeModule = function(area) {
   const tabs = [
     { key: 'sph', label: 'SPH', icon: 'fa-file-invoice' },
     { key: 'spk', label: 'SPK', icon: 'fa-clipboard-list' },
+    { key: 'invoice', label: 'Invoice', icon: 'fa-receipt' },
   ];
 
   area.innerHTML = `
@@ -30,6 +31,7 @@ function ofRenderActiveTab() {
   const tabArea = document.getElementById('office-tab-content');
   if (window.OFFICE_ACTIVE_TAB === 'sph') renderSphModule(tabArea);
   else if (window.OFFICE_ACTIVE_TAB === 'spk') renderSpkModule(tabArea);
+  else if (window.OFFICE_ACTIVE_TAB === 'invoice') renderInvoiceModule(tabArea);
 }
 
 // ============================================================================
