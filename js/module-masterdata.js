@@ -189,7 +189,7 @@ function armadaRowHtml(r) {
     <td>${r.merk || '-'}</td>
     <td>${r.tahun_kendaraan || '-'}</td>
     <td><span class="erp-badge ${servisBadge}">${r.status_servis || 'Baik'}</span></td>
-    <td class="font-mono text-slate-500">${r.tgl_pajak || '-'}</td>
+    <td class="font-mono text-slate-500">${window.formatDateID(r.tgl_pajak)}</td>
     <td>${(r.investor && r.investor.nama) || '<span class="text-slate-300 italic">Milik Angkutku</span>'}</td>
     <td class="text-center">
       <button onclick='armadaOpenForm(${JSON.stringify(r)})' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button>
