@@ -110,3 +110,17 @@ window.hasPermission = function(viewName) {
   const allowed = window.ROLE_ACCESS_MAP[role] || [];
   return allowed.indexOf(viewName) !== -1;
 };
+
+// ----------------------------------------------------------------------------
+// Format tanggal dd/mm/yyyy -- ATURAN TETAP dipakai di SEMUA modul untuk
+// seterusnya (dipanggil di sini setiap kali menampilkan tanggal di
+// tabel/tampilan baca -- BUKAN untuk value input type="date", yang tetap
+// harus format yyyy-mm-dd standar HTML supaya date picker browser jalan
+// benar).
+// ----------------------------------------------------------------------------
+window.formatDateID = function(isoDate) {
+  if (!isoDate) return '-';
+  const parts = String(isoDate).slice(0, 10).split('-'); // ambil cuma bagian tanggal, buang waktu kalau ada
+  if (parts.length !== 3) return isoDate;
+  return parts[2] + '/' + parts[1] + '/' + parts[0];
+};
