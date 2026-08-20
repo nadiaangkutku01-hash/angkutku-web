@@ -63,10 +63,11 @@ window.invoiceOpenForm = function(existingRow) {
     <div id="invoice-modal" class="erp-modal-overlay">
       <div class="erp-modal-box" style="max-width: 680px;">
         <h3 class="erp-card-title mb-4">${isEdit ? 'Edit' : 'Buat'} Invoice</h3>
+        <input type="hidden" id="if-no-sph" value="${v('no_sph')}">
         <div class="grid grid-cols-2 gap-2.5 mb-3">
           <div><label class="erp-label">Tanggal</label><input type="date" id="if-tanggal" value="${v('tanggal')}" class="erp-input"></div>
           <div><label class="erp-label">No HP</label><input id="if-hp" value="${v('no_hp')}" class="erp-input"></div>
-          <div class="col-span-2"><label class="erp-label">Nama Pelanggan</label><input id="if-nama" value="${v('nama_pelanggan')}" class="erp-input"></div>
+          <div class="col-span-2"><label class="erp-label">Nama Pelanggan</label><input id="if-nama" list="of-datalist-pelanggan-inv" oninput="ofAutoLookupHpByNama(this.value,'if-hp')" value="${v('nama_pelanggan')}" class="erp-input"><datalist id="of-datalist-pelanggan-inv">${(window._ofPelangganCache||[]).map(function(p) { return '<option value="'+p.nama_perusahaan+'">'; }).join('')}</datalist></div>
           <div class="col-span-2"><label class="erp-label">Alamat</label><input id="if-alamat" value="${v('alamat')}" class="erp-input"></div>
         </div>
 
@@ -160,6 +161,7 @@ window.invoiceSubmit = async function(noInvoiceExisting) {
     no_hp: gv('if-hp'),
     nama_pelanggan: gv('if-nama'),
     alamat: gv('if-alamat'),
+    no_sph: gv('if-no-sph') || null,
     detail_layanan_json: JSON.stringify(detailLayanan),
     total_harga: Number(gv('if-total-harga')) || 0,
     diskon: Number(gv('if-diskon')) || 0,
