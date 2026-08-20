@@ -111,19 +111,12 @@ window.sphUpdateStatus = async function(noSph, val) {
 // (yang copy detail jasa/RAB juga), cukup data identitas supaya gak
 // perlu ketik ulang dari nol.
 window.sphCreateSpkFromSph = async function(noSph) {
-  const { data: sphRow } = await supabaseClient.from('sph').select('*').eq('no_sph', noSph).single();
-  if (!sphRow) return;
   window.ofSwitchTab('spk');
   setTimeout(function() {
     window.spkOpenForm();
     setTimeout(function() {
       document.getElementById('kf-no-sph').value = noSph;
-      document.getElementById('kf-nama').value = sphRow.customer || '';
-      document.getElementById('kf-hp').value = sphRow.no_hp || '';
-      document.getElementById('kf-referensi').value = sphRow.referensi_customer || '';
-      document.getElementById('kf-alamat-asal').value = (sphRow.lokasi_asal||'').split('\n')[0] || '';
-      document.getElementById('kf-alamat-tujuan').value = (sphRow.lokasi_tujuan||'').split('\n')[0] || '';
-      document.getElementById('kf-jenis-layanan').value = (sphRow.jenis_layanan||'').split('\n')[0] || '';
+      window.spkAutofillFromSph(noSph);
     }, 150);
   }, 150);
 };
