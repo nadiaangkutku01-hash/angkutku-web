@@ -34,6 +34,7 @@
 
   <script src="js/supabase-client.js"></script>
   <script src="js/module-pelanggan.js"></script>
+  <script src="js/module-masterdata.js"></script>
   <script src="js/module-jadwal.js"></script>
   <script>
     // Daftar menu -- cuma yang munculnya sesuai hasPermission(). Modul
@@ -74,7 +75,7 @@
     function switchModule(key) {
       const contentArea = document.getElementById('content-area');
       if (key === 'MASTER_DATA') {
-        renderPelangganModule(contentArea);
+        renderMasterDataModule(contentArea);
       } else if (key === 'JADWAL') {
         renderJadwalModule(contentArea);
       } else {
