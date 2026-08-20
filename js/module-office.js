@@ -2,8 +2,13 @@
 // MODULE-OFFICE.JS -- Office dengan sistem tab (SPH, SPK, dst)
 // ============================================================================
 window.OFFICE_ACTIVE_TAB = 'sph';
+window._ofPelangganCache = [];
 
-window.renderOfficeModule = function(area) {
+window.renderOfficeModule = async function(area) {
+  if (window._ofPelangganCache.length === 0) {
+    const { data } = await supabaseClient.from('pelanggan').select('nama_perusahaan, no_telepon');
+    window._ofPelangganCache = data || [];
+  }
   const tabs = [
     { key: 'sph', label: 'SPH', icon: 'fa-file-invoice' },
     { key: 'spk', label: 'SPK', icon: 'fa-clipboard-list' },
@@ -44,6 +49,12 @@ window.renderSphModule = async function(area) {
   const { data: rows, error } = await supabaseClient.from('sph').select('*').order('tanggal', { ascending: false });
   if (error) { area.innerHTML = `<div class="p-6 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs">Gagal memuat: ${error.message}</div>`; return; }
 
+  // Buat kebutuhan Pipeline Tracker -- cek SPK/Invoice turunan tiap SPH
+  const { data: spkList } = await supabaseClient.from('spk').select('no_spk, no_sph');
+  const { data: invoiceList } = await supabaseClient.from('invoice').select('no_invoice, no_sph, status_bayar');
+  window._sphSpkCache = spkList || [];
+  window._sphInvoiceCache = invoiceList || [];
+
   area.innerHTML = `
     <div class="erp-card">
       <div class="erp-card-header">
@@ -54,7 +65,7 @@ window.renderSphModule = async function(area) {
         <table class="erp-table">
           <thead><tr>
             <th>No SPH</th><th>Tanggal</th><th>Customer</th><th>No HP</th><th>Jenis Layanan</th>
-            <th>Harga</th><th>Status</th><th>Status Deal</th><th class="text-center">Aksi</th>
+            <th>Harga</th><th>Status</th><th>Pipeline</th><th class="text-center">Aksi</th>
           </tr></thead>
           <tbody>${rows.map(sphRowHtml).join('')}</tbody>
         </table>
@@ -63,10 +74,85 @@ window.renderSphModule = async function(area) {
     </div>`;
 };
 
+// Pipeline Tracker -- tunjukkan progres SPH -> SPK -> Invoice, dengan
+// tombol buat dokumen berikutnya (data dasar otomatis terisi).
+function sphBuildPipelineHtml(r) {
+  const isDeal = r.status === 'Deal';
+  if (!isDeal) return '<span class="text-slate-300 text-[10px] italic">Belum Deal</span>';
+
+  const spkRef = (window._sphSpkCache||[]).find(function(s) { return s.no_sph === r.no_sph; });
+  const invRef = (window._sphInvoiceCache||[]).find(function(i) { return i.no_sph === r.no_sph; });
+
+  let html = '<div class="flex flex-col gap-1 text-[9px] leading-tight">';
+  html += spkRef
+    ? '<div class="text-emerald-600 font-bold"><i class="fas fa-check-circle mr-1"></i>SPK Terbit</div>'
+    : '<button onclick="sphCreateSpkFromSph(\''+r.no_sph+'\')" class="bg-indigo-600 text-white px-2 py-1 rounded font-black w-max"><i class="fas fa-truck-fast mr-1"></i>1. Buat SPK</button>';
+
+  if (!spkRef) {
+    html += '<span class="bg-slate-100 text-slate-400 px-2 py-1 rounded font-black w-max"><i class="fas fa-lock mr-1"></i>2. Invoice</span>';
+  } else if (invRef) {
+    const badgeClass = invRef.status_bayar === 'LUNAS' ? 'text-emerald-600' : 'text-amber-600';
+    html += '<div class="'+badgeClass+' font-bold"><i class="fas fa-file-invoice mr-1"></i>Invoice: '+(invRef.status_bayar||'BELUM LUNAS')+'</div>';
+  } else {
+    html += '<button onclick="sphCreateInvoiceFromSph(\''+r.no_sph+'\')" class="bg-emerald-600 text-white px-2 py-1 rounded font-black w-max"><i class="fas fa-file-invoice-dollar mr-1"></i>2. Buat Invoice</button>';
+  }
+  html += '</div>';
+  return html;
+}
+
+window.sphUpdateStatus = async function(noSph, val) {
+  const { error } = await supabaseClient.from('sph').update({ status: val }).eq('no_sph', noSph);
+  if (error) { alert('Gagal update status: ' + error.message); return; }
+  ofRenderActiveTab();
+};
+
+// Buat SPK baru, otomatis terisi data dasar dari SPH (nama, HP, alamat,
+// referensi No SPH) -- BUKAN replikasi penuh semua field kayak GAS
+// (yang copy detail jasa/RAB juga), cukup data identitas supaya gak
+// perlu ketik ulang dari nol.
+window.sphCreateSpkFromSph = async function(noSph) {
+  const { data: sphRow } = await supabaseClient.from('sph').select('*').eq('no_sph', noSph).single();
+  if (!sphRow) return;
+  window.ofSwitchTab('spk');
+  setTimeout(function() {
+    window.spkOpenForm();
+    setTimeout(function() {
+      document.getElementById('kf-no-sph').value = noSph;
+      document.getElementById('kf-nama').value = sphRow.customer || '';
+      document.getElementById('kf-hp').value = sphRow.no_hp || '';
+      document.getElementById('kf-referensi').value = sphRow.referensi_customer || '';
+      document.getElementById('kf-alamat-asal').value = (sphRow.lokasi_asal||'').split('\n')[0] || '';
+      document.getElementById('kf-alamat-tujuan').value = (sphRow.lokasi_tujuan||'').split('\n')[0] || '';
+      document.getElementById('kf-jenis-layanan').value = (sphRow.jenis_layanan||'').split('\n')[0] || '';
+    }, 150);
+  }, 150);
+};
+
+window.sphCreateInvoiceFromSph = async function(noSph) {
+  const { data: sphRow } = await supabaseClient.from('sph').select('*').eq('no_sph', noSph).single();
+  if (!sphRow) return;
+  window.ofSwitchTab('invoice');
+  setTimeout(function() {
+    window.invoiceOpenForm();
+    setTimeout(function() {
+      document.getElementById('if-no-sph').value = noSph;
+      document.getElementById('if-nama').value = sphRow.customer || '';
+      document.getElementById('if-hp').value = sphRow.no_hp || '';
+      document.getElementById('if-alamat').value = (sphRow.lokasi_asal||'').split('\n')[0] || '';
+    }, 150);
+  }, 150);
+};
+
 function sphRowHtml(r) {
   const formatRp = function(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); };
-  const statusBadge = r.status === 'Deal' ? 'erp-badge-success' : (r.status === 'Tidak Ada Respon' ? 'erp-badge-danger' : 'erp-badge-warning');
-  const dealBadge = r.status_deal_final === 'Deal' ? 'erp-badge-success' : 'erp-badge-neutral';
+  const canEditStatus = ['Owner','Admin'].indexOf(window.CURRENT_USER_SESSION.role) !== -1;
+  const statusStyleMap = { 'Deal': 'border-blue-200 bg-blue-50 text-blue-600', 'Tidak Ada Respon': 'border-rose-200 bg-rose-50 text-rose-600' };
+  const statusStyle = statusStyleMap[r.status] || 'border-amber-200 bg-amber-50 text-amber-600';
+  const statusOpts = ['Menunggu Respon','Deal','Tidak Ada Respon'].map(function(s) { return '<option value="'+s+'"'+(r.status===s?' selected':'')+'>'+s+'</option>'; }).join('');
+  const statusCell = canEditStatus
+    ? '<select onchange="sphUpdateStatus(\''+r.no_sph+'\', this.value)" class="px-2 py-1 rounded text-[10px] font-bold border cursor-pointer '+statusStyle+'">' + statusOpts + '</select>'
+    : '<span class="erp-badge '+(r.status==='Deal'?'erp-badge-success':r.status==='Tidak Ada Respon'?'erp-badge-danger':'erp-badge-warning')+'">' + (r.status||'-') + '</span>';
+
   return `<tr>
     <td class="font-mono text-slate-500">${r.no_sph || '-'}</td>
     <td class="font-mono text-slate-500">${window.formatDateID(r.tanggal)}</td>
@@ -74,8 +160,8 @@ function sphRowHtml(r) {
     <td>${r.no_hp || '-'}</td>
     <td>${r.jenis_layanan || '-'}</td>
     <td class="font-mono">${formatRp(r.harga_setelah_diskon || r.harga)}</td>
-    <td><span class="erp-badge ${statusBadge}">${r.status || '-'}</span></td>
-    <td><span class="erp-badge ${dealBadge}">${r.status_deal_final || 'Belum'}</span></td>
+    <td>${statusCell}</td>
+    <td>${sphBuildPipelineHtml(r)}</td>
     <td class="text-center">
       <button onclick='sphOpenForm(${JSON.stringify(r)})' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button>
       <button onclick="sphDelete('${r.no_sph}')" class="text-rose-600 hover:underline"><i class="fas fa-trash"></i></button>
@@ -98,6 +184,11 @@ window.ofAddSimpleRow = function(containerId, placeholder, value) {
 function ofReadSimpleRows(containerId) {
   return Array.from(document.querySelectorAll('#' + containerId + ' .i-val')).map(function(el) { return el.value; }).filter(Boolean);
 }
+
+window.ofAutoLookupHpByNama = function(namaVal, targetHpFieldId) {
+  const found = (window._ofPelangganCache||[]).find(function(p) { return p.nama_perusahaan === namaVal; });
+  if (found && found.no_telepon) document.getElementById(targetHpFieldId).value = found.no_telepon;
+};
 
 window.sphToggleJenisType = function(jenis) {
   document.getElementById('of-f-jenis-sph-hidden').value = jenis;
@@ -267,7 +358,7 @@ window.sphOpenForm = function(existingRow) {
   const html = '<div id="sph-modal" class="erp-modal-overlay"><div class="erp-modal-box" style="max-width:680px;">' +
     '<h3 class="erp-card-title mb-4">' + (isEdit?'Edit':'Buat') + ' SPH</h3><div class="space-y-2.5">' +
 
-    '<div class="grid grid-cols-2 gap-2"><div><label class="erp-label">Nama Customer</label><input id="sf-customer" value="' + v('customer') + '" class="erp-input"></div><div><label class="erp-label">No HP</label><input id="sf-hp" value="' + v('no_hp') + '" class="erp-input"></div></div>' +
+    '<div class="grid grid-cols-2 gap-2"><div><label class="erp-label">Nama Customer</label><input id="sf-customer" list="of-datalist-pelanggan" oninput="ofAutoLookupHpByNama(this.value,\'sf-hp\')" value="' + v('customer') + '" class="erp-input"><datalist id="of-datalist-pelanggan">' + (window._ofPelangganCache||[]).map(function(p) { return '<option value="'+p.nama_perusahaan+'">'; }).join('') + '</datalist></div><div><label class="erp-label">No HP</label><input id="sf-hp" value="' + v('no_hp') + '" class="erp-input"></div></div>' +
     '<div><label class="erp-label">Referensi Customer</label><input id="sf-referensi" value="' + v('referensi_customer') + '" class="erp-input"></div>' +
     '<div><label class="erp-label">Tanggal SPH</label><input type="date" id="sf-tanggal" value="' + v('tanggal') + '" class="erp-input"></div>' +
 
