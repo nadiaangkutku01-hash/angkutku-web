@@ -37,6 +37,7 @@
   <script src="js/module-masterdata.js"></script>
   <script src="js/module-jadwal.js"></script>
   <script src="js/module-office.js"></script>
+  <script src="js/module-office-spk.js"></script>
   <script>
     // Daftar menu -- cuma yang munculnya sesuai hasPermission(). Modul
     // yang belum dibangun ditandai "(segera)" -- klik gak akan ngapa-
@@ -80,7 +81,7 @@
       } else if (key === 'JADWAL') {
         renderJadwalModule(contentArea);
       } else if (key === 'OFFICE') {
-        renderSphModule(contentArea);
+        renderOfficeModule(contentArea);
       } else {
         contentArea.innerHTML = '<div class="p-8 text-center text-slate-400 italic">Modul ini belum dibangun di sistem baru -- masih tersedia di sistem GAS lama.</div>';
       }
