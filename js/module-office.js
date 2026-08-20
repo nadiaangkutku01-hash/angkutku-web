@@ -1,11 +1,39 @@
 // ============================================================================
-// MODULE-OFFICE.JS -- SPH (Surat Penawaran Harga)
+// MODULE-OFFICE.JS -- Office dengan sistem tab (SPH, SPK, dst)
 // ============================================================================
-// Pola sama dengan Pelanggan: Owner/Admin/Finance/Supervisor lihat
-// semua, Marketing CUMA dokumen yang dia buat sendiri (RLS kebijakan
-// sph_select yang menegakkan -- kode ini cuma nyembunyiin tombol INPUT
-// biar rapi, BUKAN filter data, karena filter datanya sudah otomatis
-// dari RLS begitu query dijalankan).
+window.OFFICE_ACTIVE_TAB = 'sph';
+
+window.renderOfficeModule = function(area) {
+  const tabs = [
+    { key: 'sph', label: 'SPH', icon: 'fa-file-invoice' },
+    { key: 'spk', label: 'SPK', icon: 'fa-clipboard-list' },
+  ];
+
+  area.innerHTML = `
+    <div class="flex gap-2 mb-3 overflow-x-auto">
+      ${tabs.map(function(t) {
+        const active = window.OFFICE_ACTIVE_TAB === t.key;
+        return `<button onclick="ofSwitchTab('${t.key}')" class="shrink-0 px-3 py-2 rounded-lg text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-500'}"><i class="fas ${t.icon} mr-1.5"></i>${t.label}</button>`;
+      }).join('')}
+    </div>
+    <div id="office-tab-content"></div>`;
+
+  ofRenderActiveTab();
+};
+
+window.ofSwitchTab = function(key) {
+  window.OFFICE_ACTIVE_TAB = key;
+  renderOfficeModule(document.getElementById('content-area'));
+};
+
+function ofRenderActiveTab() {
+  const tabArea = document.getElementById('office-tab-content');
+  if (window.OFFICE_ACTIVE_TAB === 'sph') renderSphModule(tabArea);
+  else if (window.OFFICE_ACTIVE_TAB === 'spk') renderSpkModule(tabArea);
+}
+
+// ============================================================================
+// SPH (Surat Penawaran Harga)
 // ============================================================================
 
 window.renderSphModule = async function(area) {
@@ -164,12 +192,12 @@ window.sphSubmit = async function(noSphExisting) {
 
   if (error) { alert('Gagal simpan: ' + error.message); return; }
   document.getElementById('sph-modal').remove();
-  renderSphModule(document.getElementById('content-area'));
+  ofRenderActiveTab();
 };
 
 window.sphDelete = async function(noSph) {
   if (!confirm('Hapus SPH ini?')) return;
   const { error } = await supabaseClient.from('sph').delete().eq('no_sph', noSph);
   if (error) { alert('Gagal hapus: ' + error.message); return; }
-  renderSphModule(document.getElementById('content-area'));
+  ofRenderActiveTab();
 };
