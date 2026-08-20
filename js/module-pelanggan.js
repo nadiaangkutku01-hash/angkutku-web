@@ -35,6 +35,7 @@ window.renderPelangganModule = async function(area) {
         <table class="erp-table">
           <thead><tr>
             <th>Nama Perusahaan</th>
+            <th>Jenis</th>
             <th>Kontak</th>
             <th>No Telepon</th>
             <th>Kota</th>
@@ -53,6 +54,7 @@ window.renderPelangganModule = async function(area) {
 function pelangganRowHtml(r, canInput) {
   return `<tr>
     <td class="font-bold text-slate-700">${r.nama_perusahaan || '-'}</td>
+    <td>${r.jenis_customer || '-'}</td>
     <td>${r.nama_kontak || '-'}</td>
     <td>${r.no_telepon || '-'}</td>
     <td>${r.kota_domisili || '-'}</td>
@@ -72,6 +74,13 @@ window.pelangganOpenForm = function(existingRow) {
         <h3 class="erp-card-title mb-4">${isEdit ? 'Edit' : 'Tambah'} Pelanggan</h3>
         <div class="space-y-2.5">
           <input id="f-nama-perusahaan" placeholder="Nama Perusahaan" value="${existingRow ? existingRow.nama_perusahaan || '' : ''}" class="erp-input">
+          <div>
+            <label class="erp-label">Jenis Customer</label>
+            <select id="f-jenis-customer" class="erp-input">
+              <option value="Individu" ${existingRow && existingRow.jenis_customer === 'Individu' ? 'selected' : ''}>Individu</option>
+              <option value="Perusahaan" ${existingRow && existingRow.jenis_customer === 'Perusahaan' ? 'selected' : ''}>Perusahaan</option>
+            </select>
+          </div>
           <input id="f-nama-kontak" placeholder="Nama Kontak" value="${existingRow ? existingRow.nama_kontak || '' : ''}" class="erp-input">
           <input id="f-no-telepon" placeholder="No Telepon" value="${existingRow ? existingRow.no_telepon || '' : ''}" class="erp-input">
           <input id="f-alamat" placeholder="Alamat" value="${existingRow ? existingRow.alamat || '' : ''}" class="erp-input">
@@ -89,6 +98,7 @@ window.pelangganOpenForm = function(existingRow) {
 window.pelangganSubmit = async function(idPelanggan) {
   const payload = {
     nama_perusahaan: document.getElementById('f-nama-perusahaan').value,
+    jenis_customer: document.getElementById('f-jenis-customer').value,
     nama_kontak: document.getElementById('f-nama-kontak').value,
     no_telepon: document.getElementById('f-no-telepon').value,
     alamat: document.getElementById('f-alamat').value,
