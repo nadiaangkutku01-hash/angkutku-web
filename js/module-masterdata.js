@@ -70,6 +70,19 @@ window.mdEnforcePhone62 = function(el) {
   el.value = digits;
 };
 
+// Auto-hitung Tgl_Selesai_Kontrak dari Tgl_Mulai_Kontrak + Durasi_Kontrak
+// (bulan) -- dipakai bareng oleh Armada & Investor (persis pola generik
+// calculateMasterContractExpiry() di GAS).
+window.calculateMasterContractExpiry = function(prefix) {
+  const startVal = document.getElementById(prefix + '-tglmulai').value;
+  const durVal = parseInt(document.getElementById(prefix + '-durasi').value, 10);
+  const endEl = document.getElementById(prefix + '-tglselesai');
+  if (!startVal || !durVal) { endEl.value = ''; return; }
+  const d = new Date(startVal + 'T00:00:00');
+  d.setMonth(d.getMonth() + durVal);
+  endEl.value = d.toISOString().slice(0, 10);
+};
+
 // ============================================================================
 // PELANGGAN
 // ============================================================================
@@ -305,7 +318,12 @@ window.armadaOpenForm = async function(existingRow) {
     '<div><label class="erp-label">Tanggal Pajak</label><input type="date" id="af-tglpajak" value="' + v('tgl_pajak') + '" class="erp-input"></div>' +
     '<div><label class="erp-label">Tanggal Servis Terakhir</label><input type="date" id="af-tglservis" value="' + v('tgl_servis') + '" class="erp-input"></div>' +
     '<div><label class="erp-label">Investor Pemilik</label><select id="af-investor" class="erp-input">' + investorOptions + '</select></div>' +
-    '<div><label class="erp-label">Durasi Kontrak (kalau milik Investor)</label><input id="af-durasi" value="' + v('durasi_kontrak') + '" class="erp-input"></div>' +
+    '<div class="bg-blue-50/40 p-3 border border-blue-100 rounded-xl space-y-2">' +
+    '<span class="block font-bold text-blue-700 uppercase text-[9px] tracking-wider"><i class="fas fa-calendar-check mr-1"></i>Kontrak (kalau milik Investor)</span>' +
+    '<div><label class="erp-label">Tgl Mulai Kontrak</label><input type="date" id="af-tglmulai" onchange="calculateMasterContractExpiry(\'af\')" value="' + v('tgl_mulai_kontrak') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Durasi Kontrak (bulan)</label><input type="number" id="af-durasi" oninput="calculateMasterContractExpiry(\'af\')" value="' + (existingRow && existingRow.durasi_kontrak ? (existingRow.durasi_kontrak.match(/\d+/)||[''])[0] : '') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Tgl Selesai Kontrak (otomatis)</label><input type="date" id="af-tglselesai" value="' + v('tgl_selesai_kontrak') + '" readonly style="background:#f1f5f9;" class="erp-input"></div>' +
+    '</div>' +
     '</div><div class="flex gap-2 mt-4"><button onclick="document.getElementById(\'armada-modal\').remove()" class="erp-btn-secondary flex-1">Batal</button>' +
     '<button onclick="armadaSubmit(' + (isEdit ? "'" + existingRow.id_armada + "'" : 'null') + ')" class="erp-btn-primary flex-1">Simpan</button></div></div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -313,7 +331,14 @@ window.armadaOpenForm = async function(existingRow) {
 
 window.armadaSubmit = async function(idArmada) {
   const gv = function(id) { return document.getElementById(id).value; };
-  const payload = { no_polisi: gv('af-plat'), jenis_kendaraan: gv('af-jenis'), merk: gv('af-merk'), tahun_kendaraan: gv('af-tahun'), status_servis: gv('af-status-servis'), tgl_pajak: gv('af-tglpajak')||null, tgl_servis: gv('af-tglservis')||null, investor_id: gv('af-investor')||null, durasi_kontrak: gv('af-durasi') };
+  const durasiAngka = gv('af-durasi');
+  const payload = {
+    no_polisi: gv('af-plat'), jenis_kendaraan: gv('af-jenis'), merk: gv('af-merk'), tahun_kendaraan: gv('af-tahun'),
+    status_servis: gv('af-status-servis'), tgl_pajak: gv('af-tglpajak')||null, tgl_servis: gv('af-tglservis')||null,
+    investor_id: gv('af-investor')||null,
+    tgl_mulai_kontrak: gv('af-tglmulai')||null, durasi_kontrak: durasiAngka ? (durasiAngka + ' Bulan') : '',
+    tgl_selesai_kontrak: gv('af-tglselesai')||null,
+  };
   let res;
   if (idArmada) res = await supabaseClient.from('armada').update(payload).eq('id_armada', idArmada);
   else { payload.id_armada = 'ARM-' + Date.now(); res = await supabaseClient.from('armada').insert(payload); }
@@ -397,13 +422,13 @@ window.renderInvestorModule = async function(area) {
   const countArmada = function(id) { return (armadaList||[]).filter(function(a){ return a.investor_id === id; }).length; };
 
   area.innerHTML = '<div class="erp-card"><div class="erp-card-header"><h2 class="erp-card-title"><i class="fas fa-sack-dollar mr-2 text-blue-500"></i>Master Data -- Investor (' + rows.length + ')</h2><button onclick="investorMdOpenForm()" class="erp-btn-primary"><i class="fas fa-plus mr-1"></i>Tambah</button></div>' +
-    '<div class="overflow-x-auto"><table class="erp-table"><thead><tr><th>Nama</th><th>No HP</th><th>Bank</th><th>Modal</th><th>Jumlah Armada</th><th class="text-center">Aksi</th></tr></thead><tbody>' +
+    '<div class="overflow-x-auto"><table class="erp-table"><thead><tr><th>Nama</th><th>No HP</th><th>Bank</th><th>Modal</th><th>Kontrak (s/d)</th><th>Jumlah Armada</th><th class="text-center">Aksi</th></tr></thead><tbody>' +
     rows.map(function(r) { return investorMdRowHtml(r, countArmada(r.id_investor)); }).join('') + '</tbody></table></div>' + (rows.length === 0 ? '<div class="p-8 text-center text-slate-400 italic text-xs">Belum ada data.</div>' : '') + '</div>';
 };
 
 function investorMdRowHtml(r, jumlahArmada) {
   const formatRp = function(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); };
-  return '<tr><td class="font-bold text-slate-700">' + (r.nama||'-') + '</td><td>' + mdWaLink(r.no_hp) + '</td><td>' + (r.nama_bank ? (r.nama_bank + ' - ' + (r.no_rekening||'-')) : '-') + '</td><td class="font-mono">' + formatRp(r.modal) + '</td><td class="text-center font-bold">' + jumlahArmada + '</td>' +
+  return '<tr><td class="font-bold text-slate-700">' + (r.nama||'-') + '</td><td>' + mdWaLink(r.no_hp) + '</td><td>' + (r.nama_bank ? (r.nama_bank + ' - ' + (r.no_rekening||'-')) : '-') + '</td><td class="font-mono">' + formatRp(r.modal) + '</td><td class="font-mono text-slate-500">' + window.formatDateID(r.tgl_selesai_kontrak) + '</td><td class="text-center font-bold">' + jumlahArmada + '</td>' +
     '<td class="text-center"><button onclick=\'investorMdOpenForm(' + JSON.stringify(r) + ')\' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button><button onclick="investorMdDelete(\'' + r.id_investor + '\')" class="text-rose-600 hover:underline"><i class="fas fa-trash"></i></button></td></tr>';
 }
 
@@ -416,7 +441,13 @@ window.investorMdOpenForm = function(existingRow) {
     '<input id="imf-alamat" placeholder="Alamat" value="' + v('alamat') + '" class="erp-input">' +
     '<input id="imf-bank" placeholder="Nama Bank" value="' + v('nama_bank') + '" class="erp-input">' +
     '<input id="imf-rekening" placeholder="No Rekening" value="' + v('no_rekening') + '" class="erp-input">' +
-    '<div><label class="erp-label">Modal</label><input type="number" id="imf-modal" value="' + v('modal', 0) + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Modal Disetor</label><input type="number" id="imf-modal" value="' + v('modal', 0) + '" class="erp-input"></div>' +
+    '<div class="bg-blue-50/40 p-3 border border-blue-100 rounded-xl space-y-2">' +
+    '<span class="block font-bold text-blue-700 uppercase text-[9px] tracking-wider"><i class="fas fa-calendar-check mr-1"></i>Kontrak Investasi</span>' +
+    '<div><label class="erp-label">Tgl Mulai Bergabung</label><input type="date" id="imf-tglmulai" onchange="calculateMasterContractExpiry(\'imf\')" value="' + v('tgl_mulai_kontrak') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Durasi Investasi (bulan)</label><input type="number" id="imf-durasi" oninput="calculateMasterContractExpiry(\'imf\')" value="' + (existingRow && existingRow.durasi_kontrak ? (existingRow.durasi_kontrak.match(/\d+/)||[''])[0] : '') + '" class="erp-input"></div>' +
+    '<div><label class="erp-label">Selesai Kontrak (otomatis)</label><input type="date" id="imf-tglselesai" value="' + v('tgl_selesai_kontrak') + '" readonly style="background:#f1f5f9;" class="erp-input"></div>' +
+    '</div>' +
     '</div><div class="flex gap-2 mt-4"><button onclick="document.getElementById(\'investor-md-modal\').remove()" class="erp-btn-secondary flex-1">Batal</button>' +
     '<button onclick="investorMdSubmit(' + (isEdit ? "'" + existingRow.id_investor + "'" : 'null') + ')" class="erp-btn-primary flex-1">Simpan</button></div></div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -424,7 +455,13 @@ window.investorMdOpenForm = function(existingRow) {
 
 window.investorMdSubmit = async function(idInvestor) {
   const gv = function(id) { return document.getElementById(id).value; };
-  const payload = { nama: gv('imf-nama'), no_hp: gv('imf-hp'), alamat: gv('imf-alamat'), nama_bank: gv('imf-bank'), no_rekening: gv('imf-rekening'), modal: Number(gv('imf-modal')) || 0 };
+  const durasiAngka = gv('imf-durasi');
+  const payload = {
+    nama: gv('imf-nama'), no_hp: gv('imf-hp'), alamat: gv('imf-alamat'), nama_bank: gv('imf-bank'), no_rekening: gv('imf-rekening'),
+    modal: Number(gv('imf-modal')) || 0,
+    tgl_mulai_kontrak: gv('imf-tglmulai')||null, durasi_kontrak: durasiAngka ? (durasiAngka + ' Bulan') : '',
+    tgl_selesai_kontrak: gv('imf-tglselesai')||null,
+  };
   let res;
   if (idInvestor) res = await supabaseClient.from('investor').update(payload).eq('id_investor', idInvestor);
   else { payload.id_investor = 'INV-' + Date.now(); res = await supabaseClient.from('investor').insert(payload); }
