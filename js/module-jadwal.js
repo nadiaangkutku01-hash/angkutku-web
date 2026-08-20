@@ -48,7 +48,7 @@ window.renderJadwalModule = async function(area) {
 function jadwalRowHtml(r, canInput) {
   const badgeClass = r.status_selesai === 'Selesai' ? 'erp-badge-success' : 'erp-badge-warning';
   return `<tr>
-    <td class="font-mono text-slate-500">${r.tanggal || '-'}</td>
+    <td class="font-mono text-slate-500">${window.formatDateID(r.tanggal)}</td>
     <td class="font-bold text-slate-700">${r.nama_pelanggan || '-'}</td>
     <td>${r.no_hp || '-'}</td>
     <td class="text-slate-500">${(r.alamat_asal || '-').slice(0,20)} → ${(r.alamat_tujuan || '-').slice(0,20)}</td>
