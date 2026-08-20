@@ -26,20 +26,20 @@ window.renderPelangganModule = async function(area) {
   }
 
   area.innerHTML = `
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-      <div class="p-4 border-b border-slate-100 flex justify-between items-center">
-        <h2 class="text-sm font-black text-slate-800"><i class="fas fa-address-book mr-2 text-blue-500"></i>Master Data -- Pelanggan (${rows.length})</h2>
-        ${canInput ? `<button onclick="pelangganOpenForm()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-lg"><i class="fas fa-plus mr-1"></i>Tambah</button>` : ''}
+    <div class="erp-card">
+      <div class="erp-card-header">
+        <h2 class="erp-card-title"><i class="fas fa-address-book mr-2 text-blue-500"></i>Master Data -- Pelanggan (${rows.length})</h2>
+        ${canInput ? `<button onclick="pelangganOpenForm()" class="erp-btn-primary"><i class="fas fa-plus mr-1"></i>Tambah</button>` : ''}
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <thead><tr class="bg-slate-50 text-slate-400 uppercase text-[9px]">
-            <th class="p-3 text-left">Nama Perusahaan</th>
-            <th class="p-3 text-left">Kontak</th>
-            <th class="p-3 text-left">No Telepon</th>
-            <th class="p-3 text-left">Kota</th>
-            <th class="p-3 text-left">Dibuat Oleh</th>
-            ${canInput ? '<th class="p-3 text-center">Aksi</th>' : ''}
+        <table class="erp-table">
+          <thead><tr>
+            <th>Nama Perusahaan</th>
+            <th>Kontak</th>
+            <th>No Telepon</th>
+            <th>Kota</th>
+            <th>Dibuat Oleh</th>
+            ${canInput ? '<th class="text-center">Aksi</th>' : ''}
           </tr></thead>
           <tbody id="pelanggan-tbody">
             ${rows.map(function(r) { return pelangganRowHtml(r, canInput); }).join('')}
@@ -51,13 +51,13 @@ window.renderPelangganModule = async function(area) {
 };
 
 function pelangganRowHtml(r, canInput) {
-  return `<tr class="border-t border-slate-100 hover:bg-slate-50">
-    <td class="p-3 font-bold text-slate-700">${r.nama_perusahaan || '-'}</td>
-    <td class="p-3">${r.nama_kontak || '-'}</td>
-    <td class="p-3">${r.no_telepon || '-'}</td>
-    <td class="p-3">${r.kota_domisili || '-'}</td>
-    <td class="p-3 text-slate-400">${r.dibuat_oleh || '-'}</td>
-    ${canInput ? `<td class="p-3 text-center">
+  return `<tr>
+    <td class="font-bold text-slate-700">${r.nama_perusahaan || '-'}</td>
+    <td>${r.nama_kontak || '-'}</td>
+    <td>${r.no_telepon || '-'}</td>
+    <td>${r.kota_domisili || '-'}</td>
+    <td class="text-slate-400">${r.dibuat_oleh || '-'}</td>
+    ${canInput ? `<td class="text-center">
       <button onclick='pelangganOpenForm(${JSON.stringify(r)})' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button>
       <button onclick="pelangganDelete('${r.id_pelanggan}')" class="text-rose-600 hover:underline"><i class="fas fa-trash"></i></button>
     </td>` : ''}
@@ -67,19 +67,19 @@ function pelangganRowHtml(r, canInput) {
 window.pelangganOpenForm = function(existingRow) {
   const isEdit = !!existingRow;
   const modalHtml = `
-    <div id="pelanggan-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-2xl p-5 w-full max-w-md">
-        <h3 class="text-sm font-black text-slate-800 mb-4">${isEdit ? 'Edit' : 'Tambah'} Pelanggan</h3>
+    <div id="pelanggan-modal" class="erp-modal-overlay">
+      <div class="erp-modal-box">
+        <h3 class="erp-card-title mb-4">${isEdit ? 'Edit' : 'Tambah'} Pelanggan</h3>
         <div class="space-y-2.5">
-          <input id="f-nama-perusahaan" placeholder="Nama Perusahaan" value="${existingRow ? existingRow.nama_perusahaan || '' : ''}" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm">
-          <input id="f-nama-kontak" placeholder="Nama Kontak" value="${existingRow ? existingRow.nama_kontak || '' : ''}" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm">
-          <input id="f-no-telepon" placeholder="No Telepon" value="${existingRow ? existingRow.no_telepon || '' : ''}" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm">
-          <input id="f-alamat" placeholder="Alamat" value="${existingRow ? existingRow.alamat || '' : ''}" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm">
-          <input id="f-kota" placeholder="Kota Domisili" value="${existingRow ? existingRow.kota_domisili || '' : ''}" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm">
+          <input id="f-nama-perusahaan" placeholder="Nama Perusahaan" value="${existingRow ? existingRow.nama_perusahaan || '' : ''}" class="erp-input">
+          <input id="f-nama-kontak" placeholder="Nama Kontak" value="${existingRow ? existingRow.nama_kontak || '' : ''}" class="erp-input">
+          <input id="f-no-telepon" placeholder="No Telepon" value="${existingRow ? existingRow.no_telepon || '' : ''}" class="erp-input">
+          <input id="f-alamat" placeholder="Alamat" value="${existingRow ? existingRow.alamat || '' : ''}" class="erp-input">
+          <input id="f-kota" placeholder="Kota Domisili" value="${existingRow ? existingRow.kota_domisili || '' : ''}" class="erp-input">
         </div>
         <div class="flex gap-2 mt-4">
-          <button onclick="document.getElementById('pelanggan-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 font-bold text-xs py-2.5 rounded-lg">Batal</button>
-          <button onclick="pelangganSubmit(${isEdit ? "'" + existingRow.id_pelanggan + "'" : 'null'})" class="flex-1 bg-blue-600 text-white font-bold text-xs py-2.5 rounded-lg">Simpan</button>
+          <button onclick="document.getElementById('pelanggan-modal').remove()" class="erp-btn-secondary flex-1">Batal</button>
+          <button onclick="pelangganSubmit(${isEdit ? "'" + existingRow.id_pelanggan + "'" : 'null'})" class="erp-btn-primary flex-1">Simpan</button>
         </div>
       </div>
     </div>`;
