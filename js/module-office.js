@@ -143,6 +143,65 @@ window.sphCreateInvoiceFromSph = async function(noSph) {
   }, 150);
 };
 
+// ============================================================================
+// GENERATE PDF -- panggil Edge Function generate-pdf (Fase 3) yang sudah
+// kita bangun, otomatis coba Gotenberg (gratis) dulu, PDFShift kalau
+// gagal. Template disederhanakan (tanpa logo/TTD gambar) dibanding versi
+// GAS asli -- tetap profesional, tapi gak perlu setup Storage logo dulu.
+// ============================================================================
+window.sphGeneratePdf = async function(noSph) {
+  const { data: r } = await supabaseClient.from('sph').select('*').eq('no_sph', noSph).single();
+  if (!r) return;
+
+  const formatRp = function(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); };
+  const isKirim = r.jenis_sph === 'Kirim Barang';
+  const html = `
+    <html><head><style>
+      body { font-family: Arial, sans-serif; font-size: 12px; color: #1e293b; padding: 24px; }
+      h1 { font-size: 20px; color: #2563eb; margin-bottom: 2px; }
+      .sub { color: #64748b; font-size: 11px; margin-bottom: 16px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+      th, td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; font-size: 11px; }
+      th { background: #f8fafc; }
+      .total-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; margin-top: 16px; font-size: 14px; font-weight: bold; color: #2563eb; }
+      .footer { margin-top: 32px; font-size: 10px; color: #94a3b8; }
+    </style></head><body>
+      <h1>SURAT PENAWARAN HARGA</h1>
+      <div class="sub">No: ${r.no_sph} &middot; Tanggal: ${window.formatDateID(r.tanggal)}</div>
+      <table>
+        <tr><th style="width:150px;">Customer</th><td>${r.customer||'-'}</td></tr>
+        <tr><th>No HP</th><td>${r.no_hp||'-'}</td></tr>
+        <tr><th>Jenis Layanan</th><td>${(r.jenis_layanan||'-').replace(/\n/g,'<br>')}</td></tr>
+        ${!isKirim ? `<tr><th>Alamat Asal</th><td>${(r.lokasi_asal||'-').replace(/\n/g,'<br>')}</td></tr>
+        <tr><th>Alamat Tujuan</th><td>${(r.lokasi_tujuan||'-').replace(/\n/g,'<br>')}</td></tr>` : ''}
+        <tr><th>Layanan Tambahan</th><td>${r.layanan_tambahan_keterangan || 'Sesuai standar operasional.'}</td></tr>
+      </table>
+      <div class="total-box">Total Harga: ${formatRp(r.harga_setelah_diskon || r.harga)}</div>
+      <p class="footer">Dokumen ini dibuat otomatis oleh sistem Angkutku ERP. Berlaku sebagai penawaran resmi.</p>
+    </body></html>`;
+
+  const btnEl = document.getElementById('sph-pdf-btn-' + noSph.replace(/[^a-zA-Z0-9]/g,''));
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; }
+
+  try {
+    const res = await fetch('https://uxqqhwrdibmzbtxebsmu.supabase.co/functions/v1/generate-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ html: html, namaFile: r.no_sph.replace(/\//g,'-') + '.pdf', folder: 'sph' }),
+    });
+    const json = await res.json();
+    if (json.success) {
+      window.open(json.url, '_blank');
+    } else {
+      alert('Gagal generate PDF: ' + json.error);
+    }
+  } catch (e) {
+    alert('Gagal generate PDF: ' + e.message);
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<i class="fas fa-file-pdf"></i>'; }
+  }
+};
+
 function sphRowHtml(r) {
   const formatRp = function(n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID'); };
   const canEditStatus = ['Owner','Admin'].indexOf(window.CURRENT_USER_SESSION.role) !== -1;
@@ -163,6 +222,7 @@ function sphRowHtml(r) {
     <td>${statusCell}</td>
     <td>${sphBuildPipelineHtml(r)}</td>
     <td class="text-center">
+      <button id="sph-pdf-btn-${(r.no_sph||'').replace(/[^a-zA-Z0-9]/g,'')}" onclick="sphGeneratePdf('${r.no_sph}')" class="text-blue-600 hover:underline mr-2" title="Cetak PDF"><i class="fas fa-file-pdf"></i></button>
       <button onclick='sphOpenForm(${JSON.stringify(r)})' class="text-amber-600 hover:underline mr-2"><i class="fas fa-edit"></i></button>
       <button onclick="sphDelete('${r.no_sph}')" class="text-rose-600 hover:underline"><i class="fas fa-trash"></i></button>
     </td>
