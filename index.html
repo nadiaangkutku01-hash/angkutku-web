@@ -33,6 +33,7 @@
   </div>
 
   <script src="js/supabase-client.js"></script>
+  <script src="js/module-dashboard.js"></script>
   <script src="js/module-pelanggan.js"></script>
   <script src="js/module-masterdata.js"></script>
   <script src="js/module-jadwal.js"></script>
@@ -45,7 +46,7 @@
     // ngapain, cuma placeholder buat menunjukkan modul apa saja yang
     // ada di rencana.
     const ALL_MENUS = [
-      { key: "DASHBOARD", label: "Dashboard", icon: "fa-chart-pie", ready: false },
+      { key: "DASHBOARD", label: "Dashboard", icon: "fa-chart-pie", ready: true },
       { key: "MASTER_DATA", label: "Master Data", icon: "fa-database", ready: true },
       { key: "OFFICE", label: "Office", icon: "fa-file-invoice", ready: true },
       { key: "JADWAL", label: "Jadwal", icon: "fa-calendar", ready: true },
@@ -62,7 +63,7 @@
         window.CURRENT_USER_SESSION.name + ' (' + window.CURRENT_USER_SESSION.role + ')';
 
       renderMenu();
-      switchModule('MASTER_DATA'); // buka Master Data dulu sebagai contoh
+      switchModule('DASHBOARD');
     }
 
     function renderMenu() {
@@ -77,7 +78,9 @@
 
     function switchModule(key) {
       const contentArea = document.getElementById('content-area');
-      if (key === 'MASTER_DATA') {
+      if (key === 'DASHBOARD') {
+        renderDashboardModule(contentArea);
+      } else if (key === 'MASTER_DATA') {
         renderMasterDataModule(contentArea);
       } else if (key === 'JADWAL') {
         renderJadwalModule(contentArea);
