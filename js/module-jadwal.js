@@ -31,7 +31,9 @@ window.renderJadwalModule = async function(area) {
           <thead><tr>
             <th>Tanggal</th>
             <th>Pelanggan</th>
+            <th>No HP</th>
             <th>Rute</th>
+            <th>Jenis Layanan</th>
             <th>Armada</th>
             <th>Status</th>
             ${canInput ? '<th class="text-center">Aksi</th>' : ''}
@@ -48,7 +50,9 @@ function jadwalRowHtml(r, canInput) {
   return `<tr>
     <td class="font-mono text-slate-500">${r.tanggal || '-'}</td>
     <td class="font-bold text-slate-700">${r.nama_pelanggan || '-'}</td>
+    <td>${r.no_hp || '-'}</td>
     <td class="text-slate-500">${(r.alamat_asal || '-').slice(0,20)} → ${(r.alamat_tujuan || '-').slice(0,20)}</td>
+    <td>${r.jenis_layanan || '-'}</td>
     <td>${r.armada_terpilih || '-'}</td>
     <td><span class="erp-badge ${badgeClass}">${r.status_selesai || 'Berjalan'}</span></td>
     ${canInput ? `<td class="text-center">
@@ -71,6 +75,10 @@ window.jadwalOpenForm = function(existingRow) {
           <div><label class="erp-label">Alamat Asal</label><input id="jf-asal" value="${existingRow ? existingRow.alamat_asal || '' : ''}" class="erp-input"></div>
           <div><label class="erp-label">Alamat Tujuan</label><input id="jf-tujuan" value="${existingRow ? existingRow.alamat_tujuan || '' : ''}" class="erp-input"></div>
           <div><label class="erp-label">Armada</label><input id="jf-armada" value="${existingRow ? existingRow.armada_terpilih || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Jenis Layanan</label><input id="jf-layanan" placeholder="misal: Pindahan Rumah" value="${existingRow ? existingRow.jenis_layanan || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Alat Kerja Dibawa</label><input id="jf-alatkerja" placeholder="misal: Hand pallet, Trolley" value="${existingRow ? existingRow.alat_kerja_dibawa || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Referensi Customer (kalau ada)</label><input id="jf-referensi" value="${existingRow ? existingRow.referensi_customer || '' : ''}" class="erp-input"></div>
+          <div><label class="erp-label">Catatan</label><input id="jf-catatan" value="${existingRow ? existingRow.catatan || '' : ''}" class="erp-input"></div>
           <div>
             <label class="erp-label">Status</label>
             <select id="jf-status" class="erp-input">
@@ -96,6 +104,10 @@ window.jadwalSubmit = async function(idOrder) {
     alamat_asal: document.getElementById('jf-asal').value,
     alamat_tujuan: document.getElementById('jf-tujuan').value,
     armada_terpilih: document.getElementById('jf-armada').value,
+    jenis_layanan: document.getElementById('jf-layanan').value,
+    alat_kerja_dibawa: document.getElementById('jf-alatkerja').value,
+    referensi_customer: document.getElementById('jf-referensi').value,
+    catatan: document.getElementById('jf-catatan').value,
     status_selesai: document.getElementById('jf-status').value,
   };
 
@@ -104,6 +116,7 @@ window.jadwalSubmit = async function(idOrder) {
     ({ error } = await supabaseClient.from('jadwal').update(payload).eq('id_order', idOrder));
   } else {
     payload.id_order = 'ANGKUTKU-ORD-' + Date.now();
+    payload.dibuat_oleh = window.CURRENT_USER_SESSION.name;
     ({ error } = await supabaseClient.from('jadwal').insert(payload));
   }
 
